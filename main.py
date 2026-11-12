@@ -1,5 +1,6 @@
 
 from collections import UserDict
+from datetime import datetime
 from functools import wraps
 
 
@@ -28,10 +29,28 @@ class Phone(Field):
         super().__init__(value)
 
 
+class Birthday(Field):
+    def __init__(self, value):
+        try:
+            date = datetime.strptime(value, "%d.%m.%Y")
+            if date.strftime("%d.%m.%Y") != value:
+                raise ValueError
+        except (ValueError, TypeError):
+            raise ValueError(
+                "Invalid date format. Use DD.MM.YYYY"
+            )
+
+        super().__init__(date)
+
+    def __str__(self):
+        return self.value.strftime("%d.%m.%Y")
+
+
 class Record:
     def __init__(self, name):
         self.name = Name(name)
         self.phones = []
+        self.birthday = None
 
     def add_phone(self, phone):
         self.phones.append(Phone(phone))
@@ -54,6 +73,9 @@ class Record:
         found = self.find_phone(phone)
         if found is not None:
             self.phones.remove(found)
+
+    def add_birthday(self, birthday):
+        self.birthday = Birthday(birthday)
 
     def __str__(self):
         phones = "; ".join(p.value for p in self.phones)
@@ -98,8 +120,6 @@ def add_contact(args, book):
         raise ValueError("Give me name and phone please.")
 
     name, phone = args
-
-    # Validate before creating or updating the contact
     Phone(phone)
 
     record = book.find(name)
@@ -150,6 +170,37 @@ def show_all(book):
     return "\n".join(str(record) for record in book.data.values())
 
 
+@input_error
+def add_birthday(args, book):
+    if len(args) != 2:
+        raise ValueError("Give me name and birthday please.")
+
+    name, birthday = args
+    record = book.find(name)
+
+    if record is None:
+        return "Contact not found."
+
+    record.add_birthday(birthday)
+    return "Birthday added."
+
+
+@input_error
+def show_birthday(args, book):
+    if len(args) != 1:
+        raise ValueError("Enter user name.")
+
+    record = book.find(args[0])
+
+    if record is None:
+        return "Contact not found."
+
+    if record.birthday is None:
+        return "Birthday not set."
+
+    return str(record.birthday)
+
+
 def main():
     book = AddressBook()
     print("Welcome to the assistant bot!")
@@ -176,6 +227,10 @@ def main():
             print(show_phone(args, book))
         elif command == "all" and not args:
             print(show_all(book))
+        elif command == "add-birthday":
+            print(add_birthday(args, book))
+        elif command == "show-birthday":
+            print(show_birthday(args, book))
         else:
             print("Invalid command.")
 
